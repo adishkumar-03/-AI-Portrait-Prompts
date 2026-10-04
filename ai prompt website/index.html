@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptPersona — Curated AI Portrait Prompts for Yourself</title>
+  <meta name="description" content="Discover, personalize, and copy battle-tested AI portrait prompts to generate iconic photos of yourself using Midjourney, Flux, and Stable Diffusion.">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Supabase JS Client via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ==============================================================================
+       Navbar
+       ============================================================================== -->
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">
+        <div class="nav-logo-icon">⚡</div>
+        <span>PromptPersona</span>
+      </a>
+
+      <div class="nav-actions">
+        <!-- Supabase Connection Status Pill -->
+        <button id="statusBadge" class="status-badge" title="Click to view or update database settings">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Connecting...</span>
+        </button>
+
+        <a href="admin.html" class="btn btn-primary btn-sm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          <span>Admin Portal</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ==============================================================================
+         Hero Section
+         ============================================================================== -->
+    <section class="hero">
+      <div class="hero-pill">
+        <span>✨ Turn AI Prompts Into Iconic Photos of Yourself</span>
+      </div>
+
+      <h1 class="hero-title">
+        Curated AI Portrait Prompts <br>
+        <span class="gradient-text">Ready to Make Your Own</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Explore studio-grade Midjourney, Flux, and SDXL portrait prompts. Customize the variables for your hair, outfit, and gender, grab the camera settings, and generate photos of yourself in seconds.
+      </p>
+
+      <!-- 3-Step Workflow Strip -->
+      <div class="how-it-works-strip">
+        <div class="work-step">
+          <div class="work-step-num">1</div>
+          <div class="work-step-text">
+            <h4>Pick a Portrait Style</h4>
+            <p>From LinkedIn headshots to cyberpunk & 90s film</p>
+          </div>
+        </div>
+
+        <div class="work-step">
+          <div class="work-step-num">2</div>
+          <div class="work-step-text">
+            <h4>Customize Variables</h4>
+            <p>Personalize gender, hairstyle, outfit & lighting</p>
+          </div>
+        </div>
+
+        <div class="work-step">
+          <div class="work-step-num">3</div>
+          <div class="work-step-text">
+            <h4>Use Your Face</h4>
+            <p>Copy prompt & apply Midjourney --cref or Flux</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Search Box -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input 
+            type="text" 
+            id="searchInput" 
+            class="search-input" 
+            placeholder="Search prompts by keyword, mood, lighting, camera, or style... (Press / to search)" 
+            autocomplete="off"
+          />
+          <button id="searchClearBtn" class="search-clear-btn" title="Clear search">✕</button>
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="category-bar" id="categoryPills">
+        <button class="category-pill active" data-category="All">All Categories</button>
+        <button class="category-pill" data-category="Professional Headshots">💼 Professional Headshots</button>
+        <button class="category-pill" data-category="Cinematic & Moody">🎬 Cinematic & Moody</button>
+        <button class="category-pill" data-category="Cyberpunk & Sci-Fi">⚡ Cyberpunk & Sci-Fi</button>
+        <button class="category-pill" data-category="Vintage & Film">🎞️ Vintage & Film</button>
+        <button class="category-pill" data-category="High Fashion Editorial">✨ High Fashion Editorial</button>
+        <button class="category-pill" data-category="Fantasy & Ethereal">🔮 Fantasy & Ethereal</button>
+        <button class="category-pill" data-category="Studio Minimalist">☕ Studio Minimalist</button>
+      </div>
+    </section>
+
+    <!-- ==============================================================================
+         Filter & Toolbar Section
+         ============================================================================== -->
+    <section class="toolbar-section">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <!-- Model Filter -->
+          <select id="modelFilter" class="filter-select">
+            <option value="All">All AI Models</option>
+            <option value="Midjourney">Midjourney v6.1</option>
+            <option value="Flux">Flux.1 Dev / Schnell</option>
+            <option value="Stable Diffusion">Stable Diffusion XL</option>
+            <option value="DALL-E">DALL-E 3</option>
+          </select>
+
+          <!-- Aspect Ratio Filter -->
+          <select id="ratioFilter" class="filter-select">
+            <option value="All">All Ratios</option>
+            <option value="4:5">4:5 (Instagram Portrait)</option>
+            <option value="1:1">1:1 (Square Profile)</option>
+            <option value="9:16">9:16 (Story / Full Mobile)</option>
+            <option value="16:9">16:9 (Landscape Banner)</option>
+          </select>
+
+          <!-- Saved / Bookmarks Filter -->
+          <button id="savedToggle" class="saved-toggle-btn" title="View only saved bookmarked prompts">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            </svg>
+            <span>Saved Prompts</span>
+          </button>
+        </div>
+
+        <div class="toolbar-right">
+          <span id="resultsCount" class="results-count">0 prompts</span>
+
+          <!-- Sort Select -->
+          <select id="sortFilter" class="filter-select">
+            <option value="popular">🔥 Most Popular (Copies)</option>
+            <option value="newest">⚡ Newest First</option>
+            <option value="title">🔤 Title (A - Z)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================================
+         Main Prompts Grid
+         ============================================================================== -->
+    <section id="promptsGrid" class="prompts-grid">
+      <!-- Populated dynamically via app.js -->
+    </section>
+  </main>
+
+  <!-- ==============================================================================
+       Prompt Detail & Personalizer Modal
+       ============================================================================== -->
+  <div id="promptModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h2 id="modalTitle">Prompt Details</h2>
+          <div class="modal-title-meta">
+            <span id="modalModelBadge" class="badge-model">Midjourney v6</span>
+            <span id="modalCategoryBadge" class="badge-category">Cinematic</span>
+            <span id="modalRatioBadge" class="badge-ratio">4:5</span>
+          </div>
+        </div>
+        <button id="modalCloseBtn" class="modal-close-btn" title="Close (Esc)">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Left: Image Viewer -->
+        <div class="modal-image-col">
+          <div class="modal-img-wrap">
+            <img id="modalImage" src="" alt="AI Portrait" />
+          </div>
+        </div>
+
+        <!-- Right: Info & Interactive Personalizer -->
+        <div class="modal-info-col">
+          <!-- Tabs -->
+          <div class="modal-tabs">
+            <button class="modal-tab-btn active" data-tab="tabPersonalize">Personalize & Copy</button>
+            <button class="modal-tab-btn" data-tab="tabSettings">Settings & Camera</button>
+            <button class="modal-tab-btn" data-tab="tabFaceGuide">How to Use Your Face</button>
+          </div>
+
+          <!-- Tab 1: Personalizer -->
+          <div id="tabPersonalize" class="tab-content active">
+            <div class="personalizer-intro">
+              <span style="font-size: 1.3rem;">🎨</span>
+              <div class="personalizer-intro-text">
+                <h4>Prompt Customizer</h4>
+                <p>Edit the fields below to customize this prompt to match your personal appearance, clothing, and vibe. The prompt will update in real-time!</p>
+              </div>
+            </div>
+
+            <!-- Dynamic variable input fields -->
+            <div id="modalVariablesContainer" class="variables-form"></div>
+
+            <!-- Live Output Prompt -->
+            <div class="prompt-output-box">
+              <div class="prompt-output-label">
+                <span>Final Output Prompt</span>
+                <span style="font-size: 0.72rem; color: var(--text-accent);">Ready to copy</span>
+              </div>
+              <div id="modalPromptOutput" class="prompt-output-text"></div>
+            </div>
+
+            <!-- Negative Prompt Box (if available) -->
+            <div id="modalNegativeBox" class="negative-prompt-box">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h5>Negative Prompt</h5>
+                <button id="modalCopyNegativeBtn" class="btn btn-outline btn-sm" style="padding: 3px 8px; font-size: 0.72rem;">Copy Negative</button>
+              </div>
+              <p id="modalNegativeText"></p>
+            </div>
+          </div>
+
+          <!-- Tab 2: Settings & Parameters -->
+          <div id="tabSettings" class="tab-content">
+            <h4 style="font-size: 0.95rem; margin-bottom: 12px;">Recommended Parameters</h4>
+            <div id="modalParamsGrid" class="param-grid"></div>
+
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <h4>Pro Tip for Realistic Portraiture</h4>
+              </div>
+              <p id="modalTipsText" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;"></p>
+            </div>
+          </div>
+
+          <!-- Tab 3: Face & Consistency Guide -->
+          <div id="tabFaceGuide" class="tab-content">
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <h4>Midjourney v6: Character Reference (--cref)</h4>
+                <span class="guide-badge">Easiest</span>
+              </div>
+              <ol>
+                <li>Take a clear, well-lit, front-facing selfie of yourself without heavy filters or sunglasses.</li>
+                <li>Upload your selfie to Discord, right-click the image, and choose <strong>Copy Link</strong>.</li>
+                <li>Paste this copied prompt into Midjourney, and append: <code>--cref &lt;your_photo_link&gt; --cw 25</code></li>
+                <li><code>--cw 25</code> focuses primarily on your facial features while letting the prompt style your hair, outfit, and background!</li>
+              </ol>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <h4>Flux.1: PuLID & InstantID</h4>
+                <span class="guide-badge">Highest Quality</span>
+              </div>
+              <ol>
+                <li>Use ComfyUI, Fooocus, or web tools like Replicate with the <strong>Flux PuLID</strong> model.</li>
+                <li>Load your portrait as the identity reference image with weight set to <code>0.75 - 0.85</code>.</li>
+                <li>Paste this customized prompt into the positive conditioning node for instant photo-realism.</li>
+              </ol>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <h4>Stable Diffusion / ReActor Node</h4>
+                <span class="guide-badge">Flexible</span>
+              </div>
+              <ol>
+                <li>Generate the image using this prompt in A1111, Forge, or ComfyUI.</li>
+                <li>Enable the <strong>ReActor</strong> extension (InsightFace) with your face photo set as the target.</li>
+                <li>Enable <strong>CodeFormer</strong> or <strong>GFPGAN</strong> face restoration at 0.6 weight for crystal-clear skin texture.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Modal Bottom Actions -->
+          <div class="modal-actions">
+            <button id="modalCopyBtn" class="btn btn-primary" style="flex-grow: 1;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+              <span>Copy Personalized Prompt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       Supabase Database Connection Modal
+       ============================================================================== -->
+  <div id="dbConnectModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h2>Supabase Database Connection</h2>
+          <div class="modal-title-meta">Connect your own database & cloud image storage</div>
+        </div>
+        <button id="dbModalCloseBtn" class="modal-close-btn">✕</button>
+      </div>
+
+      <div style="padding: 24px;">
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 20px;">
+          The website currently runs seamlessly in <strong>Demo / Local Mode</strong>. To connect your live Supabase database and storage bucket, enter your credentials below:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+          <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Project URL:</label>
+            <input type="text" id="supabaseUrlInput" class="form-input" placeholder="https://xyzcompany.supabase.co" />
+          </div>
+
+          <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Anon Public API Key:</label>
+            <input type="password" id="supabaseKeyInput" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+          </div>
+        </div>
+
+        <div id="dbStatusMsg" style="margin-bottom: 16px; font-size: 0.85rem;"></div>
+
+        <div style="background: rgba(99,102,241,0.06); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 20px; font-size: 0.8rem; color: var(--text-muted);">
+          💡 <strong>Setup Tip:</strong> Don't forget to run the SQL schema located in <code style="color: var(--accent-secondary);">sql/supabase_schema.sql</code> in your Supabase SQL editor to create the required table and storage bucket!
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button id="btnTestDb" class="btn btn-outline">Test Connection</button>
+          <button id="btnSaveDb" class="btn btn-primary">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ==============================================================================
+       Footer
+       ============================================================================== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-brand">
+        <div style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
+          <span style="color: var(--accent-primary);">⚡</span>
+          <span>PromptPersona</span>
+        </div>
+        <div class="footer-copy">Crafted for creators to turn AI prompts into personalized portraits.</div>
+      </div>
+
+      <div class="footer-links">
+        <a href="admin.html">Admin Portal</a>
+        <a href="javascript:void(0)" onclick="App.openDbModal()">Database Settings</a>
+        <a href="https://midjourney.com" target="_blank" rel="noopener">Midjourney</a>
+        <a href="https://blackforestlabs.ai" target="_blank" rel="noopener">Flux.1</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/default-prompts.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

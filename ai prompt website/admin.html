@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Studio — PromptPersona</title>
+  <meta name="description" content="Admin portal to publish, edit, and manage curated AI prompts and image storage.">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+
+  <!-- Supabase JS Client via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ==============================================================================
+       Admin Navbar
+       ============================================================================== -->
+  <header class="navbar">
+    <div class="container">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="index.html" class="nav-brand">
+          <div class="nav-logo-icon">⚡</div>
+          <span>PromptPersona</span>
+        </a>
+        <span style="font-size: 0.75rem; background: rgba(99, 102, 241, 0.2); border: 1px solid var(--border-accent); color: var(--text-accent); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700;">
+          ADMIN STUDIO
+        </span>
+      </div>
+
+      <div class="nav-actions">
+        <a href="index.html" class="btn btn-outline btn-sm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          <span>View Public Gallery</span>
+        </a>
+
+        <button id="btnLogout" class="btn btn-ghost btn-sm" style="display: none;">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ==============================================================================
+         1. Admin Authentication Gate (Login Screen)
+         ============================================================================== -->
+    <section id="loginGate" class="admin-login-wrap">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-logo">🔒</div>
+          <h2>Admin Authentication</h2>
+          <p>Sign in to upload and manage prompts</p>
+        </div>
+
+        <form id="loginForm" style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="form-group">
+            <label for="loginEmail">Email Address:</label>
+            <input type="email" id="loginEmail" class="form-input" placeholder="admin@example.com" value="admin@prompt.local" required />
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Password / Secret:</label>
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" value="admin123" required />
+          </div>
+
+          <div id="loginErrorMsg" style="color: var(--danger); font-size: 0.85rem;"></div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 6px;">
+            Sign In to Dashboard
+          </button>
+        </form>
+
+        <div class="login-demo-notice">
+          🔑 <strong>Quick Access Demo Mode:</strong><br>
+          If you haven't set up Supabase Auth yet, you can sign in directly with password: <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 4px;">admin123</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================================
+         2. Main Admin Dashboard (Visible after sign-in)
+         ============================================================================== -->
+    <section id="adminDashboard" style="display: none;">
+      <!-- Dashboard Header -->
+      <div class="admin-header">
+        <div class="admin-title-group">
+          <h1>Prompt Studio & Creator Hub</h1>
+          <p>Logged in as: <span id="adminUserEmail" style="color: var(--text-accent); font-weight: 600;">admin</span></p>
+        </div>
+        <div class="admin-actions">
+          <a href="index.html" target="_blank" class="btn btn-outline btn-sm">Preview Site ↗</a>
+        </div>
+      </div>
+
+      <!-- Quick Stats Row -->
+      <div class="admin-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🖼️</div>
+          <div class="stat-info">
+            <div id="statTotalPrompts" class="stat-value">0</div>
+            <div class="stat-label">Total Prompts</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <div id="statTotalCopies" class="stat-value">0</div>
+            <div class="stat-label">Total Prompt Copies</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🌟</div>
+          <div class="stat-info">
+            <div id="statTopCategory" class="stat-value">-</div>
+            <div class="stat-label">Top Category</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🗄️</div>
+          <div class="stat-info">
+            <div id="statDbStatus" class="stat-value">-</div>
+            <div class="stat-label">Database Mode</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nav Tabs -->
+      <div class="admin-nav-tabs">
+        <button class="admin-nav-tab active" data-panel="tabUpload">Publish New Prompt</button>
+        <button class="admin-nav-tab" data-panel="tabManage">Manage Prompts</button>
+        <button class="admin-nav-tab" data-panel="tabSettings">Supabase Database Settings</button>
+      </div>
+
+      <!-- ==========================================================================
+           TAB 1: Form to Upload / Edit Prompt
+           ========================================================================== -->
+      <div id="tabUpload" class="admin-tab-panel">
+        <div class="form-container">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h2 id="formTitleText" style="font-size: 1.3rem; font-weight: 700;">Create & Publish New Prompt</h2>
+            <button id="cancelEditBtn" class="btn btn-outline btn-sm" style="display: none;">Cancel Editing</button>
+          </div>
+
+          <form id="promptForm">
+            <div class="form-grid">
+              <!-- Title -->
+              <div class="form-group full-width">
+                <label for="inputTitle">Prompt Title / Concept Name *</label>
+                <input type="text" id="inputTitle" class="form-input" placeholder="e.g. Editorial 90s Film Portrait in Sunset Cafe" required />
+              </div>
+
+              <!-- AI Model -->
+              <div class="form-group">
+                <label for="inputModel">AI Generation Model *</label>
+                <select id="inputModel" class="form-select" required>
+                  <option value="Midjourney v6.1">Midjourney v6.1</option>
+                  <option value="Flux.1 Dev">Flux.1 Dev</option>
+                  <option value="Flux.1 Schnell">Flux.1 Schnell</option>
+                  <option value="Stable Diffusion XL">Stable Diffusion XL</option>
+                  <option value="DALL-E 3">DALL-E 3</option>
+                </select>
+              </div>
+
+              <!-- Category -->
+              <div class="form-group">
+                <label for="inputCategory">Style Category *</label>
+                <select id="inputCategory" class="form-select" required>
+                  <option value="Professional Headshots">Professional Headshots</option>
+                  <option value="Cinematic & Moody" selected>Cinematic & Moody</option>
+                  <option value="Cyberpunk & Sci-Fi">Cyberpunk & Sci-Fi</option>
+                  <option value="Vintage & Film">Vintage & Film</option>
+                  <option value="High Fashion Editorial">High Fashion Editorial</option>
+                  <option value="Fantasy & Ethereal">Fantasy & Ethereal</option>
+                  <option value="Studio Minimalist">Studio Minimalist</option>
+                </select>
+              </div>
+
+              <!-- Aspect Ratio -->
+              <div class="form-group">
+                <label for="inputAspectRatio">Aspect Ratio *</label>
+                <select id="inputAspectRatio" class="form-select" required>
+                  <option value="4:5" selected>4:5 (Standard Portrait)</option>
+                  <option value="1:1">1:1 (Square Profile)</option>
+                  <option value="9:16">9:16 (Full Height / Story)</option>
+                  <option value="16:9">16:9 (Cinematic Banner)</option>
+                  <option value="3:2">3:2 (Classic 35mm)</option>
+                </select>
+              </div>
+
+              <!-- Camera / Lens -->
+              <div class="form-group">
+                <label for="inputCamera">Recommended Lens / Camera (Optional)</label>
+                <input type="text" id="inputCamera" class="form-input" placeholder="e.g. 85mm f/1.4 lens, Canon EOS R5" />
+              </div>
+
+              <!-- Main Prompt Text -->
+              <div class="form-group full-width">
+                <label for="inputPromptText">Main Prompt Text *</label>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">
+                  💡 <strong>Tip for portrait personalization:</strong> Wrap customizable sections in brackets like <code>[a 28-year-old person with wavy brown hair]</code> or <code>[wearing a black blazer]</code> so visitors can fill them in!
+                </div>
+                <textarea id="inputPromptText" class="form-textarea" placeholder="A cinematic medium portrait of [a 28-year-old person with sharp features], standing in [rainy neon street], [wearing a black leather trench coat]..." required></textarea>
+                
+                <!-- Quick placeholder insert chips -->
+                <div class="placeholder-helper-bar">
+                  <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 4px;">Insert placeholder:</span>
+                  <button type="button" class="ph-btn" data-insert="[a 28-year-old person with natural smile]">+ [subject]</button>
+                  <button type="button" class="ph-btn" data-insert="[wearing a minimalist black turtleneck]">+ [clothing]</button>
+                  <button type="button" class="ph-btn" data-insert="[wavy dark brown hair tied back]">+ [hair]</button>
+                  <button type="button" class="ph-btn" data-insert="[warm sunset golden hour side-light]">+ [lighting]</button>
+                  <button type="button" class="ph-btn" data-insert="[shot on 35mm film, soft grain]">+ [film stock]</button>
+                </div>
+              </div>
+
+              <!-- Negative Prompt -->
+              <div class="form-group full-width">
+                <label for="inputNegativePrompt">Negative Prompt (Optional)</label>
+                <input type="text" id="inputNegativePrompt" class="form-input" placeholder="e.g. plastic skin, deformed eyes, blurry, oversaturated, bad anatomy" />
+              </div>
+
+              <!-- Lighting & Stylize -->
+              <div class="form-group">
+                <label for="inputLighting">Lighting Setup</label>
+                <input type="text" id="inputLighting" class="form-input" placeholder="e.g. Diffused Studio Softbox & Rim Light" />
+              </div>
+
+              <div class="form-group">
+                <label for="inputStylize">Stylize / CFG / Guidance</label>
+                <input type="text" id="inputStylize" class="form-input" placeholder="e.g. --s 250 or Guidance: 3.5" />
+              </div>
+
+              <!-- Face consistency tips -->
+              <div class="form-group full-width">
+                <label for="inputTips">Tips on Creating Photos of Oneself with this Prompt</label>
+                <textarea id="inputTips" class="form-textarea" style="min-height: 70px;" placeholder="e.g. In Midjourney, append --cref <your_image_url> --cw 20. In Flux, use PuLID with weight 0.8."></textarea>
+              </div>
+
+              <!-- Image Upload Section -->
+              <div class="form-group full-width">
+                <label>Generated Sample Image *</label>
+
+                <div id="dropzone" class="upload-dropzone">
+                  <input type="file" id="fileInput" accept="image/*" style="display: none;" />
+                  <div class="dropzone-content">
+                    <div class="dropzone-icon">📁</div>
+                    <div class="dropzone-text"><strong>Click to choose image file</strong> or drag & drop here</div>
+                    <div class="dropzone-hint">Uploads directly to your Supabase Storage bucket <code>prompt-images</code> (PNG, JPG, WEBP)</div>
+                  </div>
+
+                  <div id="imagePreviewBox" class="image-preview-box">
+                    <img id="previewImg" src="" alt="Preview" />
+                    <button type="button" id="removeImgBtn" class="remove-img-btn" title="Remove image">✕</button>
+                  </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                  <span style="font-size: 0.8rem; color: var(--text-muted);">Or paste direct Image URL:</span>
+                  <input type="url" id="inputImageUrl" class="form-input" style="flex-grow: 1; padding: 7px 12px; font-size: 0.85rem;" placeholder="https://images.unsplash.com/..." />
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="submit" class="btn btn-primary" style="padding: 12px 28px;">
+                <span id="submitBtnText">Publish Prompt</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           TAB 2: Manage Existing Prompts
+           ========================================================================== -->
+      <div id="tabManage" class="admin-tab-panel" style="display: none;">
+        <div class="prompts-table-wrap">
+          <table class="prompts-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Title & Details</th>
+                <th>Model</th>
+                <th>Category</th>
+                <th>Copies</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="promptsTableBody">
+              <!-- Dynamically populated via admin.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           TAB 3: Supabase Database Settings
+           ========================================================================== -->
+      <div id="tabSettings" class="admin-tab-panel" style="display: none;">
+        <div class="form-container" style="max-width: 700px;">
+          <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 12px;">Supabase Database & Cloud Storage</h2>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 24px;">
+            Link your live Supabase database and storage bucket to persist your prompts, track copy analytics, and store uploaded image files.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+              <label for="adminDbUrl">Supabase Project URL:</label>
+              <input type="text" id="adminDbUrl" class="form-input" placeholder="https://your-project-id.supabase.co" />
+            </div>
+
+            <div class="form-group">
+              <label for="adminDbKey">Supabase Anon Public API Key:</label>
+              <input type="password" id="adminDbKey" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+            </div>
+
+            <div id="adminDbStatus" style="font-size: 0.85rem; margin-top: 4px;"></div>
+
+            <div style="background: rgba(99,102,241,0.06); border: 1px solid var(--border-accent); border-radius: var(--radius-sm); padding: 16px; margin: 10px 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+              <h4 style="color: var(--text-accent); margin-bottom: 6px;">How to link your Supabase account:</h4>
+              <ol style="padding-left: 20px;">
+                <li>Create a free project at <a href="https://supabase.com" target="_blank" style="color: var(--accent-secondary); text-decoration: underline;">supabase.com</a>.</li>
+                <li>Go to <strong>Project Settings > API</strong> and copy the <strong>Project URL</strong> and <strong>anon public key</strong>.</li>
+                <li>Go to the <strong>SQL Editor</strong> in Supabase, open <code style="color: #c7d2fe;">sql/supabase_schema.sql</code> from this project, and click <strong>RUN</strong>.</li>
+                <li>Paste your credentials above and click <strong>Test Connection</strong>. Done!</li>
+              </ol>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">
+              <button type="button" id="btnAdminTestDb" class="btn btn-outline">Test Connection</button>
+              <button type="button" id="btnAdminSaveDb" class="btn btn-primary">Save & Connect</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/default-prompts.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
